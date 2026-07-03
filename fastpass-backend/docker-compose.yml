@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: fastpass-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www
+      - vendor:/var/www/vendor
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  vendor:
