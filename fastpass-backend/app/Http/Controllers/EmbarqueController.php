@@ -63,7 +63,7 @@ class EmbarqueController extends Controller
 
         $compra = Compra::where('codigo_qr', $dados['codigo_qr'])->first();
 
-        return $this->efetuarEmbarque($compra, 'qrcode');
+        return $this->efetuarEmbarque($compra, 'qr');
     }
 
     protected function efetuarEmbarque(?Compra $compra, string $metodo): JsonResponse
@@ -88,8 +88,9 @@ class EmbarqueController extends Controller
         }
 
         $compra->update([
-            'status'       => Compra::STATUS_EMBARCADA,
-            'embarcado_em' => now(),
+            'status'          => Compra::STATUS_EMBARCADA,
+            'metodo_embarque' => $metodo,
+            'embarcado_em'    => now(),
         ]);
 
         return response()->json([

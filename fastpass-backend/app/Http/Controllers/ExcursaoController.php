@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Compra;
 use App\Models\Excursao;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ExcursaoController extends Controller
 {
@@ -19,6 +20,72 @@ class ExcursaoController extends Controller
     public function show(Excursao $excursao): JsonResponse
     {
         return response()->json($excursao);
+    }
+
+    /**
+     * Cria uma nova excursão (gestão da empresa).
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $dados = $request->validate([
+            'titulo'        => ['required', 'string', 'max:255'],
+            'destino'       => ['required', 'string', 'max:255'],
+            'categoria'     => ['required', 'string', 'max:30'],
+            'cena'          => ['required', 'string', 'max:30'],
+            'empresa'       => ['nullable', 'string', 'max:255'],
+            'ponto_partida' => ['nullable', 'string', 'max:255'],
+            'ponto_retorno' => ['nullable', 'string', 'max:255'],
+            'descricao'     => ['nullable', 'string'],
+            'data_saida'    => ['required', 'date'],
+            'data_retorno'  => ['nullable', 'date', 'after_or_equal:data_saida'],
+            'preco'         => ['required', 'numeric', 'min:0'],
+            'vagas_total'   => ['required', 'integer', 'min:1'],
+        ]);
+
+        $dados['vagas_disponiveis'] = $dados['vagas_total'];
+        $dados['status'] = Excursao::STATUS_ABERTA;
+
+        $excursao = Excursao::create($dados);
+
+        return response()->json([
+            'mensagem' => 'Excursão criada com sucesso.',
+            'excursao' => $excursao,
+        ], 201);
+    }
+
+    /**
+     * Atualiza uma excursão existente.
+     */
+    public function update(Request $request, Excursao $excursao): JsonResponse
+    {
+        $dados = $request->validate([
+            'titulo'        => ['sometimes', 'string', 'max:255'],
+            'destino'       => ['sometimes', 'string', 'max:255'],
+            'categoria'     => ['sometimes', 'string', 'max:30'],
+            'cena'          => ['sometimes', 'string', 'max:30'],
+            'empresa'       => ['nullable', 'string', 'max:255'],
+            'ponto_partida' => ['nullable', 'string', 'max:255'],
+            'ponto_retorno' => ['nullable', 'string', 'max:255'],
+            'descricao'     => ['nullable', 'string'],
+            'data_saida'    => ['sometimes', 'date'],
+            'data_retorno'  => ['nullable', 'date'],
+            'preco'         => ['sometimes', 'numeric', 'min:0'],
+            'vagas_total'   => ['sometimes', 'integer', 'min:1'],
+            'status'        => ['sometimes', 'string', 'in:aberta,encerrada,concluida'],
+        ]);
+
+        // Se a capacidade mudou, ajusta as vagas disponíveis preservando as vendidas.
+        if (isset($dados['vagas_total'])) {
+            $vendidas = $excursao->vagas_total - $excursao->vagas_disponiveis;
+            $dados['vagas_disponiveis'] = max(0, $dados['vagas_total'] - $vendidas);
+        }
+
+        $excursao->update($dados);
+
+        return response()->json([
+            'mensagem' => 'Excursão atualizada com sucesso.',
+            'excursao' => $excursao->fresh(),
+        ]);
     }
 
     /**

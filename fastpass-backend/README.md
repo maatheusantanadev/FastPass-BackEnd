@@ -130,6 +130,28 @@ curl http://localhost:8000/api/excursoes/1/painel \
 ```
 Retorna vagas, passageiros confirmados, embarcados, ocupação percentual e a lista de embarque em tempo real.
 
+**Gestão de excursões (empresa/admin)**
+```bash
+# Criar excursão
+curl -X POST http://localhost:8000/api/excursoes \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  -d '{"titulo":"Boipeba","destino":"Boipeba","categoria":"praia","cena":"ilha","data_saida":"2026-09-05T06:30","preco":210,"vagas_total":33}'
+
+# Atualizar excursão
+curl -X PUT http://localhost:8000/api/excursoes/1 \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  -d '{"preco":199.90,"status":"encerrada"}'
+```
+
+**Painel da empresa (métricas agregadas)**
+```bash
+curl http://localhost:8000/api/dashboard \
+  -H "Authorization: Bearer SEU_TOKEN" -H "Accept: application/json"
+```
+Retorna a visão geral (vagas ocupadas, confirmados, pagamentos do dia, ocupação média), vendas por dia (7 dias), mix de métodos de embarque, KPIs de relatórios e o histórico de viagens concluídas.
+
 ## Reconhecimento facial (microserviço FastPass-Facial)
 
 A biometria fica num serviço dedicado — o **FastPass-Facial** (FastAPI + DeepFace) — que guarda o embedding ligado ao `id` do usuário. O Laravel é o **único cliente** dele (o front nunca o chama diretamente) e atua como proxy, autenticando via `Authorization: Bearer FACIAL_API_KEY`. A imagem é enviada como arquivo (multipart).
@@ -156,7 +178,7 @@ Isso permite demonstrar o fluxo completo do TCC mesmo sem a API DeepFace em exec
 
 - **users** — passageiros (nome, e-mail, CPF, telefone, senha)
 - **excursoes** — título, destino, datas, preço, vagas totais/disponíveis, status (`aberta` → `encerrada`/`concluida`) e campos de apresentação consumidos pelo app: `categoria` (`praia`/`aventura`), `cena` (ilustração do card: `praia`/`montanha`/`ilha`), `empresa`, `ponto_partida` e `ponto_retorno`
-- **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, biometria (`facial_registrada`, `facial_id`), `embarcado_em`, status (`confirmada` → `embarcada` → `concluida`)
+- **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, biometria (`facial_registrada`, `facial_id`), `metodo_embarque` (`facial`/`qr`/`manual`), `embarcado_em`, status (`confirmada` → `embarcada` → `concluida`)
 
 A compra decrementa `vagas_disponiveis` dentro de uma transação com `lockForUpdate`, evitando overbooking em compras concorrentes.
 

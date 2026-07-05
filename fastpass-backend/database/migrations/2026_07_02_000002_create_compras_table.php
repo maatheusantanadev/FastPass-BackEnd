@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('status', 20)->default('confirmada'); // confirmada | embarcada | concluida | cancelada
             $table->boolean('facial_registrada')->default(false);
             $table->string('facial_id')->nullable();
+            $table->string('metodo_embarque', 20)->nullable(); // facial | qr | manual
             $table->timestamp('embarcado_em')->nullable();
             $table->timestamps();
 

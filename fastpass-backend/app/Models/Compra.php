@@ -22,6 +22,7 @@ class Compra extends Model
         'status',
         'facial_registrada',
         'facial_id',
+        'metodo_embarque',
         'embarcado_em',
     ];
 

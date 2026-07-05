@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompraController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmbarqueController;
 use App\Http\Controllers\ExcursaoController;
 use App\Http\Controllers\FacialController;
@@ -54,6 +55,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/embarque/qrcode', [EmbarqueController::class, 'porQrCode']);
 
     // Gestão da excursão (visão da empresa)
+    Route::post('/excursoes', [ExcursaoController::class, 'store']);
+    Route::put('/excursoes/{excursao}', [ExcursaoController::class, 'update']);
     Route::get('/excursoes/{excursao}/painel', [ExcursaoController::class, 'painel']);
     Route::post('/excursoes/{excursao}/concluir', [ExcursaoController::class, 'concluir']);
+
+    // Painel da empresa: métricas agregadas (visão geral + relatórios)
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 });
