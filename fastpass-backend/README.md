@@ -130,14 +130,18 @@ curl http://localhost:8000/api/excursoes/1/painel \
 ```
 Retorna vagas, passageiros confirmados, embarcados, ocupação percentual e a lista de embarque em tempo real.
 
-## API de reconhecimento facial
+## Reconhecimento facial (microserviço FastPass-Facial)
 
-O `FacialRecognitionService` consome dois endpoints da API externa (configurável em `FACIAL_API_URL`):
+A biometria fica num serviço dedicado — o **FastPass-Facial** (FastAPI + DeepFace) — que guarda o embedding ligado ao `id` do usuário. O Laravel é o **único cliente** dele (o front nunca o chama diretamente) e atua como proxy, autenticando via `Authorization: Bearer FACIAL_API_KEY`. A imagem é enviada como arquivo (multipart).
 
-- `POST /register` — `{ "user_id": "1", "image": "<base64>" }` → `{ "facial_id": "..." }`
-- `POST /verify` — `{ "image": "<base64>" }` → `{ "match": true, "user_id": 1 }`
+O `FacialRecognitionService` consome (base em `FACIAL_API_URL`):
 
-Ajuste os caminhos no service caso os endpoints da sua API DeepFace sejam diferentes.
+- `POST /faces` — multipart `fastpass_user_id`, `nome?`, `file` → `{ "facial_id": "..." }`
+- `POST /identify` — multipart `file`, `candidatos?` → `{ "match": true, "fastpass_user_id": 1, "confianca": 85.5 }`
+
+No embarque, o Laravel envia em `candidatos` os ids dos passageiros com biometria registrada na excursão, restringindo a busca. Configure `FACIAL_API_URL` (URL do serviço/Space) e a **mesma** `FACIAL_API_KEY` nos dois lados.
+
+> O repositório do serviço fica em `../FastPass-Facial` (deploy no Hugging Face Spaces, porta 7860). Os embeddings vão numa tabela `faces` no **mesmo Supabase** deste backend.
 
 ### Modo simulado (demonstração)
 

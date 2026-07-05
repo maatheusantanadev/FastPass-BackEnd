@@ -10,6 +10,7 @@ return [
 
     'facial' => [
         'url'  => env('FACIAL_API_URL'),
+        'key'  => env('FACIAL_API_KEY'),
         'fake' => env('FACIAL_API_FAKE', false),
     ],
 

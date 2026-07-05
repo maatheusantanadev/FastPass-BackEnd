@@ -27,7 +27,15 @@ class EmbarqueController extends Controller
             'imagem'      => ['required', 'string'], // imagem em base64
         ]);
 
-        $resultado = $this->facial->verificar($dados['imagem']);
+        // Restringe a busca aos passageiros com biometria registrada nesta
+        // excursão — mais rápido, mais preciso e evita falsos positivos
+        // com passageiros de outras viagens.
+        $candidatos = Compra::where('excursao_id', $dados['excursao_id'])
+            ->where('facial_registrada', true)
+            ->pluck('user_id')
+            ->all();
+
+        $resultado = $this->facial->verificar($dados['imagem'], $candidatos);
 
         if (! $resultado['sucesso']) {
             return response()->json([

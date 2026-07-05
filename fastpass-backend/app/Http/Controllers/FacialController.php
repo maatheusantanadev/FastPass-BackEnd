@@ -33,7 +33,11 @@ class FacialController extends Controller
             'imagem' => ['required', 'string'], // imagem em base64
         ]);
 
-        $resultado = $this->facial->registrar($request->user()->id, $dados['imagem']);
+        $resultado = $this->facial->registrar(
+            $request->user()->id,
+            $dados['imagem'],
+            $request->user()->name,
+        );
 
         if (! $resultado['sucesso']) {
             return response()->json([
