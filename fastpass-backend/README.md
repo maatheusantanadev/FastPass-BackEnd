@@ -43,6 +43,10 @@ docker compose exec app php artisan migrate --seed
 
 A API estará disponível em `http://localhost:8000`.
 
+> **CORS (front-end):** a origem da SPA é liberada em `config/cors.php`. Em desenvolvimento o Vite roda em `http://localhost:5173` (já incluído); em produção defina `FRONTEND_URL` no `.env`. A autenticação usa tokens Bearer, então não há troca de cookies.
+
+O seeder popula as **cinco excursões da Bahia** exibidas no app (Praia do Forte, Chapada Diamantina, Morro de São Paulo, Cachoeira & Recôncavo e Ilha dos Frades), já com `categoria`, `cena`, `empresa` e pontos de partida/retorno — de modo que a API entregue exatamente o catálogo esperado pelo front-end.
+
 ## Fluxo do sistema (TCC)
 
 | # | Etapa | Endpoint |
@@ -147,7 +151,7 @@ Isso permite demonstrar o fluxo completo do TCC mesmo sem a API DeepFace em exec
 ## Modelo de dados
 
 - **users** — passageiros (nome, e-mail, CPF, telefone, senha)
-- **excursoes** — título, destino, datas, preço, vagas totais/disponíveis, status (`aberta` → `encerrada`/`concluida`)
+- **excursoes** — título, destino, datas, preço, vagas totais/disponíveis, status (`aberta` → `encerrada`/`concluida`) e campos de apresentação consumidos pelo app: `categoria` (`praia`/`aventura`), `cena` (ilustração do card: `praia`/`montanha`/`ilha`), `empresa`, `ponto_partida` e `ponto_retorno`
 - **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, biometria (`facial_registrada`, `facial_id`), `embarcado_em`, status (`confirmada` → `embarcada` → `concluida`)
 
 A compra decrementa `vagas_disponiveis` dentro de uma transação com `lockForUpdate`, evitando overbooking em compras concorrentes.
