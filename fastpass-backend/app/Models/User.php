@@ -17,6 +17,8 @@ class User extends Authenticatable
         'password',
         'cpf',
         'telefone',
+        'facial_registrada',
+        'facial_id',
     ];
 
     protected $hidden = [
@@ -27,7 +29,8 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'facial_registrada' => 'boolean',
         ];
     }
 

@@ -36,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/facial', [AuthController::class, 'registrarFacial']); // cadastro da face (por usuário)
     });
 
     // Dashboard: excursões disponíveis para compra

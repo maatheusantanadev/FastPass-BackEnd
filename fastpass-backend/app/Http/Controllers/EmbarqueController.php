@@ -27,11 +27,11 @@ class EmbarqueController extends Controller
             'imagem'      => ['required', 'string'], // imagem em base64
         ]);
 
-        // Restringe a busca aos passageiros com biometria registrada nesta
-        // excursão — mais rápido, mais preciso e evita falsos positivos
-        // com passageiros de outras viagens.
+        // Restringe a busca aos passageiros desta excursão que já cadastraram a
+        // biometria — mais rápido, mais preciso e evita falsos positivos com
+        // passageiros de outras viagens. (A face é vinculada ao usuário.)
         $candidatos = Compra::where('excursao_id', $dados['excursao_id'])
-            ->where('facial_registrada', true)
+            ->whereHas('user', fn ($q) => $q->where('facial_registrada', true))
             ->pluck('user_id')
             ->all();
 
@@ -46,7 +46,8 @@ class EmbarqueController extends Controller
 
         $compra = Compra::where('user_id', $resultado['user_id'])
             ->where('excursao_id', $dados['excursao_id'])
-            ->where('facial_registrada', true)
+            ->whereIn('status', [Compra::STATUS_CONFIRMADA, Compra::STATUS_EMBARCADA])
+            ->latest()
             ->first();
 
         return $this->efetuarEmbarque($compra, 'facial');
