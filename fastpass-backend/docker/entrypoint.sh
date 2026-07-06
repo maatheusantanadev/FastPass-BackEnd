@@ -28,5 +28,7 @@ php artisan config:clear
 echo ">> Rodando migrations + seed..."
 php artisan migrate --seed --force || echo ">> AVISO: migrate/seed falhou — verifique as credenciais do banco (Supabase) no .env."
 
-echo ">> FastPass API disponível em http://localhost:8000"
-php artisan serve --host=0.0.0.0 --port=8000
+# A hospedagem (Render/Railway/Fly) injeta a porta em $PORT; local usa 8000.
+PORT="${PORT:-8000}"
+echo ">> FastPass API na porta ${PORT}"
+php artisan serve --host=0.0.0.0 --port="${PORT}"

@@ -22,7 +22,8 @@ return [
         'http://localhost:4173',
     ])),
 
-    'allowed_origins_patterns' => [],
+    // Libera qualquer subdomínio *.vercel.app (produção e previews do front).
+    'allowed_origins_patterns' => ['/^https:\/\/.*\.vercel\.app$/'],
 
     'allowed_headers' => ['*'],
 
