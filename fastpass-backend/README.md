@@ -54,7 +54,9 @@ O seeder popula as **cinco excursões da Bahia** exibidas no app (Praia do Forte
 | 1 | Cadastro | `POST /api/auth/register` |
 | 2 | Login | `POST /api/auth/login` |
 | 3 | Dashboard com excursões disponíveis | `GET /api/excursoes` |
-| 4 | Compra efetuada | `POST /api/compras` |
+| 4 | Checkout: compra + cobrança Pix | `POST /api/compras` |
+| 4b | Confirmação do pagamento (polling) | `GET /api/compras/{id}/pagamento` |
+| 4c | Confirmação via webhook do PSP | `POST /api/webhooks/mercadopago` |
 | 5 | Registro da facial na compra | `POST /api/compras/{id}/facial` |
 | 6 | Validação de facial (embarque) | `POST /api/embarque/facial` |
 | 6b | Embarque alternativo por QR Code | `POST /api/embarque/qrcode` |
@@ -84,14 +86,21 @@ curl http://localhost:8000/api/excursoes \
   -H "Authorization: Bearer SEU_TOKEN" -H "Accept: application/json"
 ```
 
-**4. Comprar passagem**
+**4. Checkout — cria a compra e gera a cobrança Pix**
 ```bash
 curl -X POST http://localhost:8000/api/compras \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   -d '{"excursao_id":1}'
 ```
-A resposta inclui o `codigo_qr` (UUID) da passagem — alternativa de embarque ao reconhecimento facial.
+A compra nasce `pendente_pagamento` (a vaga **não** é debitada ainda). A resposta traz `pix.copia_cola` (BR Code) e `pix.qr_base64` para o app exibir o QR, além do `codigo_qr` (UUID) do bilhete de embarque.
+
+**4b. Confirmar o pagamento (o app faz polling; o webhook confirma em produção)**
+```bash
+curl http://localhost:8000/api/compras/1/pagamento \
+  -H "Authorization: Bearer SEU_TOKEN" -H "Accept: application/json"
+```
+Retorna `status` (`pendente`/`aprovado`/`recusado`). Quando aprovado, a compra vira `confirmada` e a vaga é debitada (com lock). Configure `MERCADOPAGO_ACCESS_TOKEN` (token de TESTE) no `.env`; sem ele, o pagamento é simulado (aprova automaticamente).
 
 **5. Registrar a facial na compra**
 ```bash
@@ -178,7 +187,7 @@ Isso permite demonstrar o fluxo completo do TCC mesmo sem a API DeepFace em exec
 
 - **users** — passageiros (nome, e-mail, CPF, telefone, senha)
 - **excursoes** — título, destino, datas, preço, vagas totais/disponíveis, status (`aberta` → `encerrada`/`concluida`) e campos de apresentação consumidos pelo app: `categoria` (`praia`/`aventura`), `cena` (ilustração do card: `praia`/`montanha`/`ilha`), `empresa`, `ponto_partida` e `ponto_retorno`
-- **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, biometria (`facial_registrada`, `facial_id`), `metodo_embarque` (`facial`/`qr`/`manual`), `embarcado_em`, status (`confirmada` → `embarcada` → `concluida`)
+- **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, pagamento (`pagamento_id`, `pix_copia_cola`, `pago_em`), biometria (`facial_registrada`, `facial_id`), `metodo_embarque` (`facial`/`qr`/`manual`), `embarcado_em`, status (`pendente_pagamento` → `confirmada` → `embarcada` → `concluida`)
 
 A compra decrementa `vagas_disponiveis` dentro de uma transação com `lockForUpdate`, evitando overbooking em compras concorrentes.
 

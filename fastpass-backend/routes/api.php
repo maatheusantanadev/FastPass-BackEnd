@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmbarqueController;
 use App\Http\Controllers\ExcursaoController;
 use App\Http\Controllers\FacialController;
+use App\Http\Controllers\PagamentoWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,6 +30,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
+// Webhook do Mercado Pago (confirmação de pagamento Pix)
+Route::post('/webhooks/mercadopago', [PagamentoWebhookController::class, 'mercadopago']);
+
 // ---------- Rotas autenticadas ----------
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -47,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/compras', [CompraController::class, 'index']);
     Route::post('/compras', [CompraController::class, 'store']);
     Route::get('/compras/{compra}', [CompraController::class, 'show']);
+    Route::get('/compras/{compra}/pagamento', [CompraController::class, 'pagamento']);
 
     // Registro da biometria facial vinculada à compra
     Route::post('/compras/{compra}/facial', [FacialController::class, 'registrar']);
