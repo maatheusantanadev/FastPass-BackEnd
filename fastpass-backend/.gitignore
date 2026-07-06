@@ -6,6 +6,10 @@
 /storage/*.key
 /storage/logs/*
 !/storage/logs/.gitkeep
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+!/storage/framework/**/.gitkeep
 /bootstrap/cache/*
 !/bootstrap/cache/.gitkeep
 .DS_Store
