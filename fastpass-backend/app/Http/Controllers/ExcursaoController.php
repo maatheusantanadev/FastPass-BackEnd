@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Compra;
 use App\Models\Excursao;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ExcursaoController extends Controller
 {
@@ -89,12 +92,63 @@ class ExcursaoController extends Controller
     }
 
     /**
+     * Adiciona um passageiro à excursão (visão da empresa): cria uma passagem
+     * confirmada para um usuário existente, identificado pelo e-mail.
+     */
+    public function adicionarPassageiro(Request $request, Excursao $excursao): JsonResponse
+    {
+        $dados = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $dados['email'])->first();
+
+        if (! $user) {
+            return response()->json([
+                'mensagem' => 'Nenhum passageiro cadastrado com este e-mail.',
+            ], 404);
+        }
+
+        $compra = DB::transaction(function () use ($excursao, $user) {
+            $ex = Excursao::lockForUpdate()->findOrFail($excursao->id);
+
+            if ($ex->status !== Excursao::STATUS_ABERTA || $ex->vagas_disponiveis <= 0) {
+                abort(422, 'Não há vagas disponíveis para esta excursão.');
+            }
+
+            $jaTem = Compra::where('user_id', $user->id)
+                ->where('excursao_id', $ex->id)
+                ->whereIn('status', [Compra::STATUS_CONFIRMADA, Compra::STATUS_EMBARCADA])
+                ->exists();
+
+            if ($jaTem) {
+                abort(422, 'Este passageiro já possui uma passagem ativa nesta excursão.');
+            }
+
+            $ex->decrement('vagas_disponiveis');
+
+            return Compra::create([
+                'user_id'     => $user->id,
+                'excursao_id' => $ex->id,
+                'codigo_qr'   => (string) Str::uuid(),
+                'valor'       => $ex->preco,
+                'status'      => Compra::STATUS_CONFIRMADA,
+            ]);
+        });
+
+        return response()->json([
+            'mensagem' => 'Passageiro adicionado com sucesso.',
+            'compra'   => $compra->load('user:id,name,email,cpf'),
+        ], 201);
+    }
+
+    /**
      * Painel de gestão da excursão (visão da empresa):
      * vagas, confirmados, embarcados e ocupação em tempo real.
      */
     public function painel(Excursao $excursao): JsonResponse
     {
-        $compras = $excursao->compras()->with('user:id,name,email')->get();
+        $compras = $excursao->compras()->with('user:id,name,email,cpf')->get();
 
         $confirmados = $compras->whereIn('status', [
             Compra::STATUS_CONFIRMADA,

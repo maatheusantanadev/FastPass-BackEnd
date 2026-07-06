@@ -54,10 +54,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Embarque inteligente
     Route::post('/embarque/facial', [EmbarqueController::class, 'porFacial']);
     Route::post('/embarque/qrcode', [EmbarqueController::class, 'porQrCode']);
+    Route::post('/embarque/manual', [EmbarqueController::class, 'porManual']);
 
     // Gestão da excursão (visão da empresa)
     Route::post('/excursoes', [ExcursaoController::class, 'store']);
     Route::put('/excursoes/{excursao}', [ExcursaoController::class, 'update']);
+    Route::post('/excursoes/{excursao}/passageiros', [ExcursaoController::class, 'adicionarPassageiro']);
     Route::get('/excursoes/{excursao}/painel', [ExcursaoController::class, 'painel']);
     Route::post('/excursoes/{excursao}/concluir', [ExcursaoController::class, 'concluir']);
 

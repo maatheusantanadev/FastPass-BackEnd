@@ -67,6 +67,21 @@ class EmbarqueController extends Controller
         return $this->efetuarEmbarque($compra, 'qr');
     }
 
+    /**
+     * Embarque manual (conferência da operação): o operador confirma uma
+     * passagem específica pela lista.
+     */
+    public function porManual(Request $request): JsonResponse
+    {
+        $dados = $request->validate([
+            'compra_id' => ['required', 'integer', 'exists:compras,id'],
+        ]);
+
+        $compra = Compra::find($dados['compra_id']);
+
+        return $this->efetuarEmbarque($compra, 'manual');
+    }
+
     protected function efetuarEmbarque(?Compra $compra, string $metodo): JsonResponse
     {
         if (! $compra) {
