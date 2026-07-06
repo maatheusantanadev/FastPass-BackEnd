@@ -20,5 +20,13 @@ if ! grep -q "^APP_KEY=base64" .env; then
     php artisan key:generate --force
 fi
 
+# Aplica a config do .env (limpa cache antigo)
+php artisan config:clear
+
+# Roda migrations + seed (idempotente). Não derruba o container se falhar,
+# para o servidor subir mesmo assim e o erro do banco ficar visível nos logs.
+echo ">> Rodando migrations + seed..."
+php artisan migrate --seed --force || echo ">> AVISO: migrate/seed falhou — verifique as credenciais do banco (Supabase) no .env."
+
 echo ">> FastPass API disponível em http://localhost:8000"
 php artisan serve --host=0.0.0.0 --port=8000

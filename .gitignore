@@ -1,0 +1,8 @@
+# Segredos — nunca versionar. O .env real fica só na máquina/servidor.
+# (padrão sem barra: pega .env em qualquer subpasta, ex.: fastpass-backend/.env)
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
