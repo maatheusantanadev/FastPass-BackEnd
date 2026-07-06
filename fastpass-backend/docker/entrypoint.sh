@@ -9,14 +9,19 @@ if [ ! -f vendor/autoload.php ]; then
     composer install --no-interaction --prefer-dist
 fi
 
-# Garante a existência do .env
+# .env é só para dev local. Em PaaS (Render/Railway) as variáveis vêm do
+# ambiente e NÃO devem ser mascaradas pelos placeholders do .env.example.
 if [ ! -f .env ]; then
-    echo ">> Criando .env a partir do .env.example..."
-    cp .env.example .env
+    if [ -n "$APP_KEY" ] || [ -n "$DB_HOST" ]; then
+        echo ">> Variáveis de ambiente detectadas — rodando sem arquivo .env."
+    else
+        echo ">> Criando .env a partir do .env.example (dev local)..."
+        cp .env.example .env
+    fi
 fi
 
-# Gera a APP_KEY se ainda não existir
-if ! grep -q "^APP_KEY=base64" .env; then
+# Gera a APP_KEY apenas quando há um arquivo .env (dev local).
+if [ -f .env ] && ! grep -q "^APP_KEY=base64" .env; then
     php artisan key:generate --force
 fi
 
