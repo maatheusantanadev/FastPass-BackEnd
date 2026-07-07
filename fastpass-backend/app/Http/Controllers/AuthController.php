@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\FacialRecognitionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -24,7 +23,7 @@ class AuthController extends Controller
             'telefone' => ['nullable', 'string', 'max:20'],
         ]);
 
-        $user = User::create($dados);
+        $user = User::create($dados + ['role' => User::ROLE_PASSAGEIRO]);
 
         $token = $user->createToken('fastpass')->plainTextToken;
 
@@ -72,40 +71,5 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['mensagem' => 'Sessão encerrada.']);
-    }
-
-    /**
-     * Cadastro da biometria facial do usuário autenticado.
-     *
-     * A face fica vinculada ao id do usuário no serviço FastPass-Facial, então
-     * o cadastro é feito uma vez por conta (ex.: no onboarding). No embarque, a
-     * identificação devolve esse mesmo id.
-     */
-    public function registrarFacial(Request $request, FacialRecognitionService $facial): JsonResponse
-    {
-        $dados = $request->validate([
-            'imagem' => ['required', 'string'], // imagem em base64 (data URI aceito)
-        ]);
-
-        $user = $request->user();
-
-        $resultado = $facial->registrar($user->id, $dados['imagem'], $user->name);
-
-        if (! $resultado['sucesso']) {
-            return response()->json([
-                'mensagem' => 'Falha ao registrar a biometria facial.',
-                'detalhe'  => $resultado['erro'] ?? null,
-            ], 502);
-        }
-
-        $user->update([
-            'facial_registrada' => true,
-            'facial_id'         => $resultado['facial_id'],
-        ]);
-
-        return response()->json([
-            'mensagem' => 'Biometria facial registrada com sucesso.',
-            'usuario'  => $user->fresh(),
-        ]);
     }
 }

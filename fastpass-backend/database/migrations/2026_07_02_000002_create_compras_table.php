@@ -14,15 +14,9 @@ return new class extends Migration
             $table->foreignId('excursao_id')->constrained('excursoes')->cascadeOnDelete();
             $table->uuid('codigo_qr')->unique();
             $table->decimal('valor', 10, 2);
-            // pendente_pagamento | confirmada | embarcada | concluida | cancelada
-            $table->string('status', 25)->default('pendente_pagamento');
-            // Pagamento (Pix via Mercado Pago)
-            $table->string('pagamento_id')->nullable();      // id da cobrança no PSP
-            $table->text('pix_copia_cola')->nullable();       // BR Code (copia e cola)
-            $table->timestamp('pago_em')->nullable();
+            $table->string('status', 20)->default('confirmada'); // confirmada | embarcada | concluida | cancelada
             $table->boolean('facial_registrada')->default(false);
             $table->string('facial_id')->nullable();
-            $table->string('metodo_embarque', 20)->nullable(); // facial | qr | manual
             $table->timestamp('embarcado_em')->nullable();
             $table->timestamps();
 

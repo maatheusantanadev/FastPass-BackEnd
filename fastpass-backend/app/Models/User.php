@@ -11,14 +11,17 @@ class User extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
+    public const ROLE_PASSAGEIRO    = 'passageiro';
+    public const ROLE_MOTORISTA     = 'motorista';
+    public const ROLE_ADMINISTRADOR = 'administrador';
+
     protected $fillable = [
         'name',
         'email',
         'password',
         'cpf',
         'telefone',
-        'facial_registrada',
-        'facial_id',
+        'role',
     ];
 
     protected $hidden = [
@@ -29,13 +32,33 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'password'          => 'hashed',
-            'facial_registrada' => 'boolean',
+            'password' => 'hashed',
         ];
     }
 
     public function compras(): HasMany
     {
         return $this->hasMany(Compra::class);
+    }
+
+    // Excursões em que este usuário é o motorista designado.
+    public function excursoesComoMotorista(): HasMany
+    {
+        return $this->hasMany(Excursao::class, 'motorista_id');
+    }
+
+    public function isMotorista(): bool
+    {
+        return $this->role === self::ROLE_MOTORISTA;
+    }
+
+    public function isAdministrador(): bool
+    {
+        return $this->role === self::ROLE_ADMINISTRADOR;
+    }
+
+    public function isPassageiro(): bool
+    {
+        return $this->role === self::ROLE_PASSAGEIRO;
     }
 }

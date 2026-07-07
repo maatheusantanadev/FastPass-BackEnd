@@ -43,10 +43,6 @@ docker compose exec app php artisan migrate --seed
 
 A API estará disponível em `http://localhost:8000`.
 
-> **CORS (front-end):** a origem da SPA é liberada em `config/cors.php`. Em desenvolvimento o Vite roda em `http://localhost:5173` (já incluído); em produção defina `FRONTEND_URL` no `.env`. A autenticação usa tokens Bearer, então não há troca de cookies.
-
-O seeder popula as **cinco excursões da Bahia** exibidas no app (Praia do Forte, Chapada Diamantina, Morro de São Paulo, Cachoeira & Recôncavo e Ilha dos Frades), já com `categoria`, `cena`, `empresa` e pontos de partida/retorno — de modo que a API entregue exatamente o catálogo esperado pelo front-end.
-
 ## Fluxo do sistema (TCC)
 
 | # | Etapa | Endpoint |
@@ -54,9 +50,7 @@ O seeder popula as **cinco excursões da Bahia** exibidas no app (Praia do Forte
 | 1 | Cadastro | `POST /api/auth/register` |
 | 2 | Login | `POST /api/auth/login` |
 | 3 | Dashboard com excursões disponíveis | `GET /api/excursoes` |
-| 4 | Checkout: compra + cobrança Pix | `POST /api/compras` |
-| 4b | Confirmação do pagamento (polling) | `GET /api/compras/{id}/pagamento` |
-| 4c | Confirmação via webhook do PSP | `POST /api/webhooks/mercadopago` |
+| 4 | Compra efetuada | `POST /api/compras` |
 | 5 | Registro da facial na compra | `POST /api/compras/{id}/facial` |
 | 6 | Validação de facial (embarque) | `POST /api/embarque/facial` |
 | 6b | Embarque alternativo por QR Code | `POST /api/embarque/qrcode` |
@@ -86,21 +80,14 @@ curl http://localhost:8000/api/excursoes \
   -H "Authorization: Bearer SEU_TOKEN" -H "Accept: application/json"
 ```
 
-**4. Checkout — cria a compra e gera a cobrança Pix**
+**4. Comprar passagem**
 ```bash
 curl -X POST http://localhost:8000/api/compras \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   -d '{"excursao_id":1}'
 ```
-A compra nasce `pendente_pagamento` (a vaga **não** é debitada ainda). A resposta traz `pix.copia_cola` (BR Code) e `pix.qr_base64` para o app exibir o QR, além do `codigo_qr` (UUID) do bilhete de embarque.
-
-**4b. Confirmar o pagamento (o app faz polling; o webhook confirma em produção)**
-```bash
-curl http://localhost:8000/api/compras/1/pagamento \
-  -H "Authorization: Bearer SEU_TOKEN" -H "Accept: application/json"
-```
-Retorna `status` (`pendente`/`aprovado`/`recusado`). Quando aprovado, a compra vira `confirmada` e a vaga é debitada (com lock). Configure `MERCADOPAGO_ACCESS_TOKEN` (token de TESTE) no `.env`; sem ele, o pagamento é simulado (aprova automaticamente).
+A resposta inclui o `codigo_qr` (UUID) da passagem — alternativa de embarque ao reconhecimento facial.
 
 **5. Registrar a facial na compra**
 ```bash
@@ -139,40 +126,14 @@ curl http://localhost:8000/api/excursoes/1/painel \
 ```
 Retorna vagas, passageiros confirmados, embarcados, ocupação percentual e a lista de embarque em tempo real.
 
-**Gestão de excursões (empresa/admin)**
-```bash
-# Criar excursão
-curl -X POST http://localhost:8000/api/excursoes \
-  -H "Authorization: Bearer SEU_TOKEN" \
-  -H "Content-Type: application/json" -H "Accept: application/json" \
-  -d '{"titulo":"Boipeba","destino":"Boipeba","categoria":"praia","cena":"ilha","data_saida":"2026-09-05T06:30","preco":210,"vagas_total":33}'
+## API de reconhecimento facial
 
-# Atualizar excursão
-curl -X PUT http://localhost:8000/api/excursoes/1 \
-  -H "Authorization: Bearer SEU_TOKEN" \
-  -H "Content-Type: application/json" -H "Accept: application/json" \
-  -d '{"preco":199.90,"status":"encerrada"}'
-```
+O `FacialRecognitionService` consome dois endpoints da API externa (configurável em `FACIAL_API_URL`):
 
-**Painel da empresa (métricas agregadas)**
-```bash
-curl http://localhost:8000/api/dashboard \
-  -H "Authorization: Bearer SEU_TOKEN" -H "Accept: application/json"
-```
-Retorna a visão geral (vagas ocupadas, confirmados, pagamentos do dia, ocupação média), vendas por dia (7 dias), mix de métodos de embarque, KPIs de relatórios e o histórico de viagens concluídas.
+- `POST /register` — `{ "user_id": "1", "image": "<base64>" }` → `{ "facial_id": "..." }`
+- `POST /verify` — `{ "image": "<base64>" }` → `{ "match": true, "user_id": 1 }`
 
-## Reconhecimento facial (microserviço FastPass-Facial)
-
-A biometria fica num serviço dedicado — o **FastPass-Facial** (FastAPI + DeepFace) — que guarda o embedding ligado ao `id` do usuário. O Laravel é o **único cliente** dele (o front nunca o chama diretamente) e atua como proxy, autenticando via `Authorization: Bearer FACIAL_API_KEY`. A imagem é enviada como arquivo (multipart).
-
-O `FacialRecognitionService` consome (base em `FACIAL_API_URL`):
-
-- `POST /faces` — multipart `fastpass_user_id`, `nome?`, `file` → `{ "facial_id": "..." }`
-- `POST /identify` — multipart `file`, `candidatos?` → `{ "match": true, "fastpass_user_id": 1, "confianca": 85.5 }`
-
-No embarque, o Laravel envia em `candidatos` os ids dos passageiros com biometria registrada na excursão, restringindo a busca. Configure `FACIAL_API_URL` (URL do serviço/Space) e a **mesma** `FACIAL_API_KEY` nos dois lados.
-
-> O repositório do serviço fica em `../FastPass-Facial` (deploy no Hugging Face Spaces, porta 7860). Os embeddings vão numa tabela `faces` no **mesmo Supabase** deste backend.
+Ajuste os caminhos no service caso os endpoints da sua API DeepFace sejam diferentes.
 
 ### Modo simulado (demonstração)
 
@@ -186,8 +147,8 @@ Isso permite demonstrar o fluxo completo do TCC mesmo sem a API DeepFace em exec
 ## Modelo de dados
 
 - **users** — passageiros (nome, e-mail, CPF, telefone, senha)
-- **excursoes** — título, destino, datas, preço, vagas totais/disponíveis, status (`aberta` → `encerrada`/`concluida`) e campos de apresentação consumidos pelo app: `categoria` (`praia`/`aventura`), `cena` (ilustração do card: `praia`/`montanha`/`ilha`), `empresa`, `ponto_partida` e `ponto_retorno`
-- **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, pagamento (`pagamento_id`, `pix_copia_cola`, `pago_em`), biometria (`facial_registrada`, `facial_id`), `metodo_embarque` (`facial`/`qr`/`manual`), `embarcado_em`, status (`pendente_pagamento` → `confirmada` → `embarcada` → `concluida`)
+- **excursoes** — título, destino, datas, preço, vagas totais/disponíveis, status (`aberta` → `encerrada`/`concluida`)
+- **compras** — vínculo usuário × excursão, `codigo_qr` único, valor, biometria (`facial_registrada`, `facial_id`), `embarcado_em`, status (`confirmada` → `embarcada` → `concluida`)
 
 A compra decrementa `vagas_disponiveis` dentro de uma transação com `lockForUpdate`, evitando overbooking em compras concorrentes.
 

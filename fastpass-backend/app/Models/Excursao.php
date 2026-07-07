@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Excursao extends Model
@@ -17,17 +18,13 @@ class Excursao extends Model
         'titulo',
         'descricao',
         'destino',
-        'categoria',
-        'cena',
-        'empresa',
-        'ponto_partida',
-        'ponto_retorno',
         'data_saida',
         'data_retorno',
         'preco',
         'vagas_total',
         'vagas_disponiveis',
         'status',
+        'motorista_id',
     ];
 
     protected function casts(): array
@@ -42,6 +39,19 @@ class Excursao extends Model
     public function compras(): HasMany
     {
         return $this->hasMany(Compra::class);
+    }
+
+    public function motorista(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'motorista_id');
+    }
+
+    // Excursões (não concluídas) atribuídas a um motorista, mais próximas primeiro.
+    public function scopeDoMotorista($query, int $motoristaId)
+    {
+        return $query->where('motorista_id', $motoristaId)
+            ->where('status', '!=', self::STATUS_CONCLUIDA)
+            ->orderBy('data_saida');
     }
 
     public function scopeDisponiveis($query)

@@ -15,8 +15,6 @@ return new class extends Migration
             $table->string('password');
             $table->string('cpf', 14)->nullable()->unique();
             $table->string('telefone', 20)->nullable();
-            $table->boolean('facial_registrada')->default(false);
-            $table->string('facial_id')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

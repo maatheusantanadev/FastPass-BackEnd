@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Compra;
+use App\Models\Excursao;
 use App\Services\FacialRecognitionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,15 +28,10 @@ class EmbarqueController extends Controller
             'imagem'      => ['required', 'string'], // imagem em base64
         ]);
 
-        // Restringe a busca aos passageiros desta excursão que já cadastraram a
-        // biometria — mais rápido, mais preciso e evita falsos positivos com
-        // passageiros de outras viagens. (A face é vinculada ao usuário.)
-        $candidatos = Compra::where('excursao_id', $dados['excursao_id'])
-            ->whereHas('user', fn ($q) => $q->where('facial_registrada', true))
-            ->pluck('user_id')
-            ->all();
+        $excursao = Excursao::findOrFail($dados['excursao_id']);
+        $this->autorizarViagem($request, $excursao);
 
-        $resultado = $this->facial->verificar($dados['imagem'], $candidatos);
+        $resultado = $this->facial->verificar($dados['imagem']);
 
         if (! $resultado['sucesso']) {
             return response()->json([
@@ -46,8 +42,7 @@ class EmbarqueController extends Controller
 
         $compra = Compra::where('user_id', $resultado['user_id'])
             ->where('excursao_id', $dados['excursao_id'])
-            ->whereIn('status', [Compra::STATUS_CONFIRMADA, Compra::STATUS_EMBARCADA])
-            ->latest()
+            ->where('facial_registrada', true)
             ->first();
 
         return $this->efetuarEmbarque($compra, 'facial');
@@ -64,12 +59,17 @@ class EmbarqueController extends Controller
 
         $compra = Compra::where('codigo_qr', $dados['codigo_qr'])->first();
 
-        return $this->efetuarEmbarque($compra, 'qr');
+        if ($compra) {
+            $this->autorizarViagem($request, $compra->excursao);
+        }
+
+        return $this->efetuarEmbarque($compra, 'qrcode');
     }
 
     /**
-     * Embarque manual (conferência da operação): o operador confirma uma
-     * passagem específica pela lista.
+     * Conferência manual: o motorista/operador confirma o embarque de um
+     * passageiro já localizado na lista (a busca por nome/CPF é feita no
+     * front-end sobre a lista trazida por MotoristaController::embarque).
      */
     public function porManual(Request $request): JsonResponse
     {
@@ -78,6 +78,10 @@ class EmbarqueController extends Controller
         ]);
 
         $compra = Compra::find($dados['compra_id']);
+
+        if ($compra) {
+            $this->autorizarViagem($request, $compra->excursao);
+        }
 
         return $this->efetuarEmbarque($compra, 'manual');
     }
@@ -93,7 +97,7 @@ class EmbarqueController extends Controller
         if ($compra->status === Compra::STATUS_EMBARCADA) {
             return response()->json([
                 'mensagem' => 'Passageiro já embarcado.',
-                'compra'   => $compra->load('user:id,name', 'excursao:id,titulo,destino'),
+                'compra'   => $compra->load('user:id,name,cpf', 'excursao:id,titulo,destino'),
             ], 422);
         }
 
@@ -105,13 +109,28 @@ class EmbarqueController extends Controller
 
         $compra->update([
             'status'          => Compra::STATUS_EMBARCADA,
-            'metodo_embarque' => $metodo,
             'embarcado_em'    => now(),
+            'metodo_embarque' => $metodo,
         ]);
 
         return response()->json([
             'mensagem' => 'Embarque autorizado via '.$metodo.'.',
-            'compra'   => $compra->fresh()->load('user:id,name', 'excursao:id,titulo,destino'),
+            'compra'   => $compra->fresh()->load('user:id,name,cpf', 'excursao:id,titulo,destino'),
         ]);
+    }
+
+    /**
+     * Só o motorista designado para a viagem (ou um administrador) pode
+     * validar embarques dela.
+     */
+    protected function autorizarViagem(Request $request, Excursao $excursao): void
+    {
+        $usuario = $request->user();
+
+        abort_if(
+            ! $usuario->isAdministrador() && $excursao->motorista_id !== $usuario->id,
+            403,
+            'Esta viagem não está atribuída a você.'
+        );
     }
 }
