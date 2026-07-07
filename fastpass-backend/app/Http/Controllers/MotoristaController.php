@@ -4,11 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Compra;
 use App\Models\Excursao;
+use App\Models\PedidoEmbarque;
+use App\Services\EmbarqueService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MotoristaController extends Controller
 {
+    public function __construct(
+        protected EmbarqueService $embarqueService
+    ) {}
+
     /**
      * Viagens atribuídas ao motorista autenticado (ainda não concluídas),
      * da mais próxima para a mais distante.
@@ -47,6 +53,77 @@ class MotoristaController extends Controller
             'passageiros_confirmados' => $confirmados->count(),
             'passageiros_embarcados'  => $embarcados->count(),
             'lista_embarque'          => $compras->values(),
+        ]);
+    }
+
+    /**
+     * Pedidos de embarque pendentes de uma viagem: para cada um, traz a foto
+     * enviada agora pelo passageiro E a foto de referência cadastrada, para
+     * o motorista comparar visualmente antes de decidir.
+     */
+    public function pedidos(Request $request, Excursao $excursao): JsonResponse
+    {
+        $this->autorizarExcursao($request, $excursao);
+
+        $pedidos = PedidoEmbarque::query()
+            ->whereHas('compra', fn ($q) => $q->where('excursao_id', $excursao->id))
+            ->where('status', PedidoEmbarque::STATUS_PENDENTE)
+            ->with('compra.user:id,name,cpf')
+            ->latest()
+            ->get();
+
+        return response()->json($pedidos);
+    }
+
+    /**
+     * Aprova o pedido: o motorista comparou as fotos e confirma que é o
+     * mesmo passageiro. Efetiva o embarque da compra correspondente.
+     */
+    public function aprovarPedido(Request $request, PedidoEmbarque $pedido): JsonResponse
+    {
+        $pedido->loadMissing('compra.excursao');
+        $this->autorizarExcursao($request, $pedido->compra->excursao);
+
+        if ($pedido->status !== PedidoEmbarque::STATUS_PENDENTE) {
+            return response()->json(['mensagem' => 'Este pedido já foi resolvido.'], 422);
+        }
+
+        $resposta = $this->embarqueService->efetuar($pedido->compra, 'facial');
+
+        // Só marca o pedido como aprovado se o embarque foi efetivado (2xx).
+        if ($resposta->getStatusCode() < 300) {
+            $pedido->update([
+                'status'        => PedidoEmbarque::STATUS_APROVADO,
+                'resolvido_por' => $request->user()->id,
+                'resolvido_em'  => now(),
+            ]);
+        }
+
+        return $resposta;
+    }
+
+    /**
+     * Reprova o pedido: as fotos não batem (ou o motorista tem dúvida). O
+     * passageiro pode enviar um novo pedido em seguida.
+     */
+    public function reprovarPedido(Request $request, PedidoEmbarque $pedido): JsonResponse
+    {
+        $pedido->loadMissing('compra.excursao');
+        $this->autorizarExcursao($request, $pedido->compra->excursao);
+
+        if ($pedido->status !== PedidoEmbarque::STATUS_PENDENTE) {
+            return response()->json(['mensagem' => 'Este pedido já foi resolvido.'], 422);
+        }
+
+        $pedido->update([
+            'status'        => PedidoEmbarque::STATUS_REPROVADO,
+            'resolvido_por' => $request->user()->id,
+            'resolvido_em'  => now(),
+        ]);
+
+        return response()->json([
+            'mensagem' => 'Pedido reprovado. O passageiro pode tentar novamente.',
+            'pedido'   => $pedido->fresh(),
         ]);
     }
 

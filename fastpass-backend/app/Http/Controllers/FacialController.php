@@ -45,6 +45,7 @@ class FacialController extends Controller
         $compra->update([
             'facial_registrada' => true,
             'facial_id'         => $resultado['facial_id'],
+            'foto_referencia'   => $dados['imagem'],
         ]);
 
         return response()->json([
